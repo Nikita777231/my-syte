@@ -2,53 +2,120 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8"/>
-  <title>Поиск заказа</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Управление заказами</title>
+  <style>
+    body{font-family:Arial;margin:2rem}
+    h1{color:#2c3e50}
+    #searchForm{margin-bottom:1rem}
+    #result{margin-top:1rem}
+    #result table{border-collapse:collapse}
+    #result td{padding:.4rem .8rem;border-bottom:1px solid #ddd}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center}
+    .modal.show{display:flex}
+    .modal-content{background:#fff;padding:1.5rem 2rem;border-radius:6px;min-width:300px}
+    .modal-content label{display:block;margin:.4rem 0}
+    .close{float:right;font-size:1.4rem;cursor:pointer}
+    #rPhoto{max-width:200px}
+  </style>
 </head>
 <body>
-  <h1>Поиск заказа</h1>
+  <h1>Управление заказами</h1>
 
-  <!-- Поиск -->
+  <!-- ПОИСК -->
   <form id="searchForm">
-    <label>
-      Номер заказа:
-      <input type="number" id="orderId" required />
-    </label>
+    <label>Номер заказа <input type="number" id="orderId" required></label>
     <button type="submit">Найти</button>
   </form>
 
-  <!-- Результат поиска -->
+  <!-- РЕЗУЛЬТАТ -->
   <div id="result" hidden>
     <h2>Информация о заказе №<span id="rId"></span></h2>
     <table>
-      <tr><td>Длина (мм)</td><td id="rLength"></td></tr>
+      <tr><td>Высота (мм)</td><td id="rLength"></td></tr>
       <tr><td>Ширина (мм)</td><td id="rWidth"></td></tr>
       <tr><td>Толщина (мм)</td><td id="rHeight"></td></tr>
       <tr><td>Цена (₽)</td><td id="rPrice"></td></tr>
       <tr><td>Адрес доставки</td><td id="rAddress"></td></tr>
-      <tr><td>Фото</td>
-      <td><img id="rPhoto" style="max-width:200px; display:none"></td>
-  </tr>
+      <tr><td>Фото</td><td><img id="rPhoto" style="display:none"></td></tr>
     </table>
   </div>
 
-  
+  <!-- ЕДИНСТВЕННАЯ КНОПКА ОТКРЫТИЯ ФОРМЫ -->
+  <button id="openCreateBtn" type="button">Создать заказ</button>
 
-  <!-- Кнопка открытия формы создания -->
-  <button id="openCreateBtn" style = "margin: 1rem 0">Создать заказ</button>
+  <!-- МОДАЛЬНОЕ ОКНО СОЗДАНИЯ -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Новый заказ</h2>
+      <form id="createForm" enctype="multipart/form-data">
+        <label>Номер заказа <input type="number" name="orderId" required></label>
+        <label>Длина (мм)   <input type="number" name="length"   required></label>
+        <label>Ширина (мм)  <input type="number" name="width"   required></label>
+        <label>Толщина (мм) <input type="number" name="height"  required></label>
+        <label>Цена (₽)     <input type="number" name="price" step="0.01" required></label>
+        <label>Адрес        <input name="address" required></label>
+        <label>Фото         <input type="file" name="photo" accept="image/*"></label>
+        <button type="submit">Создать</button>
+      </form>
+    </div>
+  </div>
 
-  <form id="createForm" enctype="multipart/form-data">
-  <label>Номер заказа <input type="number" name="Номер_Заказа" required></label>
-  <label>Длина (мм)   <input type="number" name="Длинна"   required></label>
-  <label>Ширина (мм)  <input type="number" name="Ширина"   required></label>
-  <label>Толщина (мм) <input type="number" name="Толщина"  required></label>
-  <label>Цена (₽)     <input type="number" name="Цена"     step="0.01" required></label>
-  <label>Адрес        <input type="text"   name="Адрес_Доставки" required></label>
-  <label>Фото         <input type="file"   name="photo" accept="image/*"></label>
-  <button type="submit">Создать</button>
-</form>
+  <script>
+    /* ---------- ПОИСК ---------- */
+    const searchForm=document.getElementById('searchForm');
+    const resultDiv =document.getElementById('result');
 
-  <script src="app.js"></script>
+    searchForm.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const id=document.getElementById('orderId').value.trim();
+      if(!id) return;
+      try{
+        const res=await fetch(`/api/order/${id}`);
+        if(!res.ok) throw new Error((await res.json()).error||'Не найдено');
+        const o=await res.json();
 
+        document.getElementById('rId').textContent     =o.Номер_Заказа;
+        document.getElementById('rLength').textContent =o.Высота;
+        document.getElementById('rWidth').textContent  =o.Ширина;
+        document.getElementById('rHeight').textContent =o.Толщина;
+        document.getElementById('rPrice').textContent  =o.Цена;
+        document.getElementById('rAddress').textContent=o.Адрес_Доставки;
+
+        const img=document.getElementById('rPhoto');
+        if(o.photo){ img.src=o.photo; img.style.display='inline'; }
+        else{ img.style.display='none'; }
+
+        resultDiv.hidden=false;
+      }catch(err){
+        alert(err.message||'Ошибка при поиске');
+        resultDiv.hidden=true;
+      }
+    });
+
+    /* ---------- СОЗДАНИЕ ---------- */
+    const modal     =document.getElementById('createModal');
+    const openBtn   =document.getElementById('openCreateBtn');
+    const closeBtn  =document.querySelector('.close');
+    const createForm=document.getElementById('createForm');
+
+    openBtn .addEventListener('click',()=>modal.classList.add('show'));
+    closeBtn.addEventListener('click',()=>modal.classList.remove('show'));
+    window  .addEventListener('click',e=>{ if(e.target===modal)modal.classList.remove('show') });
+
+    createForm.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const fd=new FormData(createForm);
+      try{
+        const res=await fetch('/api/order',{method:'POST', body:fd});
+        if(!res.ok) throw new Error((await res.json()).error||'Ошибка');
+        alert('Заказ создан!');
+        createForm.reset();
+        modal.classList.remove('show');
+      }catch(err){
+        alert(err.message||'Не удалось создать заказ');
+      }
+    });
+  </script>
 </body>
 </html>
