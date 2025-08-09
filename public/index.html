@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>Поиск заказа</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Поиск заказа</h1>
+
+  <!-- Поиск -->
+  <form id="searchForm">
+    <label>
+      Номер заказа:
+      <input type="number" id="orderId" required />
+    </label>
+    <button type="submit">Найти</button>
+  </form>
+
+  <!-- Результат поиска -->
+  <div id="result" hidden>
+    <h2>Информация о заказе №<span id="rId"></span></h2>
+    <table>
+      <tr><td>Длина (мм)</td><td id="rLength"></td></tr>
+      <tr><td>Ширина (мм)</td><td id="rWidth"></td></tr>
+      <tr><td>Толщина (мм)</td><td id="rHeight"></td></tr>
+      <tr><td>Цена (₽)</td><td id="rPrice"></td></tr>
+      <tr><td>Адрес доставки</td><td id="rAddress"></td></tr>
+      <tr><td>Фото</td>
+      <td><img id="rPhoto" style="max-width:200px; display:none"></td>
+  </tr>
+    </table>
+  </div>
+
+  
+
+  <!-- Кнопка открытия формы создания -->
+  <button id="openCreateBtn" style = "margin: 1rem 0">Создать заказ</button>
+
+  <form id="createForm" enctype="multipart/form-data">
+  <label>Номер заказа <input type="number" name="Номер_Заказа" required></label>
+  <label>Длина (мм)   <input type="number" name="Длинна"   required></label>
+  <label>Ширина (мм)  <input type="number" name="Ширина"   required></label>
+  <label>Толщина (мм) <input type="number" name="Толщина"  required></label>
+  <label>Цена (₽)     <input type="number" name="Цена"     step="0.01" required></label>
+  <label>Адрес        <input type="text"   name="Адрес_Доставки" required></label>
+  <label>Фото         <input type="file"   name="photo" accept="image/*"></label>
+  <button type="submit">Создать</button>
+</form>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
