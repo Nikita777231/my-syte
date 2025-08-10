@@ -8,8 +8,8 @@
     h1 { color: #2c3e50; }
     #searchForm { margin-bottom: 1rem; }
     #result { margin-top: 1rem; }
-    #result table { border-collapse: collapse; }
-    #result td { padding: .4rem .8rem; border-bottom: 1px solid #ddd; }
+    #result table { border-collapse: collapse;  }
+    #result td { padding: .4rem .8rem; border-bottom: 1px solid #ddd;  }
 
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); align-items: center; justify-content: center; }
     .modal.show { display: flex; }
@@ -44,15 +44,24 @@
   </form>
 
   <!-- РЕЗУЛЬТАТ -->
-  <div id="result" hidden>
+  <div id="result" hidden >
     <h2>Информация о заказе №<span id="rId"></span></h2>
-    <table>
-      <tr><td>Высота (мм)</td><td id="rLength"></td></tr>
+    <table border="4">
+      <tr><td>Высота (мм)</td><td id="rLength"></td></tr> 
       <tr><td>Ширина (мм)</td><td id="rWidth"></td></tr>
       <tr><td>Толщина (мм)</td><td id="rHeight"></td></tr>
       <tr><td>Цена (₽)</td><td id="rPrice"></td></tr>
       <tr><td>Адрес доставки</td><td id="rAddress"></td></tr>
       <tr><td>Фото</td><td><img id="rPhoto" style="display:none"></td></tr>
+      <tr><td>Комплектация</td><td id="rEquipment"></td></tr>
+      <tr><td>Описание(примечание)</td><td id="rDescription"></td></tr>
+    </table>
+    <h2>Информация о заказчике</h2>
+    <table border="4">
+      <tr><td>Номер заказа</td><td id="rId"></td></tr>
+      <tr><td>ФИО заказчика</td><td id="rFioCustomer"></td></tr>
+      <tr><td>Адрес жительства</td><td id="rAddressOfResidence"></td></tr>
+      <tr><td>Номер телефона</td><td id="rPhone"></td></tr>
     </table>
   </div>
 
@@ -61,6 +70,7 @@
     <button id="openCreateBtn" type="button">Создать заказ</button>
     <input id="editId" type="number" placeholder="№ заказа">
     <button id="openEditBtn" type="button">Изменить заказ</button>
+    <button id="deleteBtn" type="button">Удалить заказ</button>
   </div>
 
   <!-- МОДАЛЬНОЕ ОКНО СОЗДАНИЯ -->
@@ -76,6 +86,8 @@
         <label>Цена (₽)     <input type="number" name="price" step="0.01" required></label>
         <label>Адрес        <input type="text" name="address" required></label>
         <label>Фото         <input type="file" name="photo" accept="image/*"></label>
+        <label>Комплектация <input type="text" name="equipment" required></label>
+        <label>Описание(примечание) <input type="text" name="description" required></label>
         <button type="submit">Создать</button>
       </form>
     </div>
@@ -94,6 +106,8 @@
         <label>Цена (₽)       <input type="number" id="editPrice"   name="price" step="0.01" required></label>
         <label>Адрес          <input type="text"   id="editAddress" name="address" required></label>
         <label>Фото           <input type="file"   id="editPhoto"   name="photo" accept="image/*"></label>
+        <label>Комплектация <input type="text" id="editEquipment" name="equipment" required></label>
+        <label>Описание(примечание) <input type="text" id="editDescription" name="description" required></label>
         <input type="hidden" id="editOldPhoto" name="oldPhoto">
         <button type="submit">Сохранить изменения</button>
       </form>
@@ -120,6 +134,8 @@
         document.getElementById('rHeight').textContent = o.Толщина;
         document.getElementById('rPrice').textContent  = o.Цена;
         document.getElementById('rAddress').textContent= o.Адрес_Доставки;
+        document.getElementById('rEquipment').textContent = o.Комплектация;
+        document.getElementById('rDescription').textContent = o.Описание_Примечание;
 
         const img = document.getElementById('rPhoto');
         if (o.photo) { img.src = o.photo; img.style.display = 'inline'; }
@@ -178,6 +194,8 @@
         document.getElementById('editPrice').value    = o.Цена;
         document.getElementById('editAddress').value  = o.Адрес_Доставки;
         document.getElementById('editOldPhoto').value = o.photo || '';
+        document.getElementById('editEquipment').value = o.Комплектация;
+        document.getElementById('editDescription').value = o.Описание_Примечание;
         editModal.classList.add('show');
       } catch (e) {
         alert(e.message || 'Ошибка при поиске');
@@ -201,6 +219,29 @@
         alert(e.message || 'Не удалось изменить заказ');
       }
     });
+
+   /* ---------- УДАЛЕНИЕ ЗАКАЗА ---------- */
+const deleteBtn = document.getElementById('deleteBtn');
+
+deleteBtn.addEventListener('click', async () => {
+  const id = document.getElementById('editId').value.trim();
+  if (!id) { 
+    alert('Введите номер заказа'); 
+    return; 
+  }
+
+  if (!confirm(`Точно удалить заказ №${id}?`)) return;
+
+  try {
+    const res = await fetch(`/api/order/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error((await res.json()).error || 'Ошибка при удалении');
+    alert('Заказ удалён!');
+    document.getElementById('editId').value = '';
+    document.getElementById('result').hidden = true;
+  } catch (e) {
+    alert(e.message || 'Не удалось удалить заказ');
+  }
+});
   </script>
 </body>
 </html>
