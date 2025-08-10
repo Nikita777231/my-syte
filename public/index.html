@@ -4,18 +4,34 @@
   <meta charset="utf-8"/>
   <title>Управление заказами</title>
   <style>
-    body{font-family:Arial;margin:2rem}
-    h1{color:#2c3e50}
-    #searchForm{margin-bottom:1rem}
-    #result{margin-top:1rem}
-    #result table{border-collapse:collapse}
-    #result td{padding:.4rem .8rem;border-bottom:1px solid #ddd}
-    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center}
-    .modal.show{display:flex}
-    .modal-content{background:#fff;padding:1.5rem 2rem;border-radius:6px;min-width:300px}
-    .modal-content label{display:block;margin:.4rem 0}
-    .close{float:right;font-size:1.4rem;cursor:pointer}
-    #rPhoto{max-width:200px}
+    body { font-family: Arial; margin: 2rem; }
+    h1 { color: #2c3e50; }
+    #searchForm { margin-bottom: 1rem; }
+    #result { margin-top: 1rem; }
+    #result table { border-collapse: collapse; }
+    #result td { padding: .4rem .8rem; border-bottom: 1px solid #ddd; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: #fff; padding: 1.5rem 2rem; border-radius: 6px; min-width: 300px; }
+    .modal-content label { display: block; margin: .4rem 0; }
+    .close { float: right; font-size: 1.4rem; cursor: pointer; }
+    #rPhoto { max-width: 200px; }
+
+    #createForm { display: flex; flex-direction: column; gap: 0.8rem; }
+    #createForm label { display: flex; flex-direction: column; font-size: 1rem; }
+    #createForm input[type="number"],
+    #createForm input[type="text"],
+    #createForm input[type="file"] {
+      padding: 0.4rem;
+      font-size: 1rem;
+    }
+
+    #editModal .modal-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
   </style>
 </head>
 <body>
@@ -24,7 +40,7 @@
   <!-- ПОИСК -->
   <form id="searchForm">
     <label>Номер заказа <input type="number" id="orderId" required></label>
-    <button type="submit">Найти</button>
+    <button type="submit">Найти</button> 
   </form>
 
   <!-- РЕЗУЛЬТАТ -->
@@ -40,8 +56,12 @@
     </table>
   </div>
 
-  <!-- ЕДИНСТВЕННАЯ КНОПКА ОТКРЫТИЯ ФОРМЫ -->
-  <button id="openCreateBtn" type="button">Создать заказ</button>
+  <!-- КНОПКИ -->
+  <div style="display:flex;gap:0.5rem;margin:1rem 0;">
+    <button id="openCreateBtn" type="button">Создать заказ</button>
+    <input id="editId" type="number" placeholder="№ заказа">
+    <button id="openEditBtn" type="button">Изменить заказ</button>
+  </div>
 
   <!-- МОДАЛЬНОЕ ОКНО СОЗДАНИЯ -->
   <div id="createModal" class="modal">
@@ -50,70 +70,135 @@
       <h2>Новый заказ</h2>
       <form id="createForm" enctype="multipart/form-data">
         <label>Номер заказа <input type="number" name="orderId" required></label>
-        <label>Длина (мм)   <input type="number" name="length"   required></label>
-        <label>Ширина (мм)  <input type="number" name="width"   required></label>
-        <label>Толщина (мм) <input type="number" name="height"  required></label>
+        <label>Длина (мм)   <input type="number" name="length" required></label>
+        <label>Ширина (мм)  <input type="number" name="width" required></label>
+        <label>Толщина (мм) <input type="number" name="height" required></label>
         <label>Цена (₽)     <input type="number" name="price" step="0.01" required></label>
-        <label>Адрес        <input name="address" required></label>
+        <label>Адрес        <input type="text" name="address" required></label>
         <label>Фото         <input type="file" name="photo" accept="image/*"></label>
         <button type="submit">Создать</button>
       </form>
     </div>
   </div>
 
+  <!-- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeEdit">&times;</span>
+      <h2>Изменить заказ</h2>
+      <form id="editForm" enctype="multipart/form-data">
+        <label>Номер заказа   <input type="number" id="editOrderId" name="orderId" readonly></label>
+        <label>Длина (мм)     <input type="number" id="editLength"  name="length" required></label>
+        <label>Ширина (мм)    <input type="number" id="editWidth"   name="width" required></label>
+        <label>Толщина (мм)   <input type="number" id="editHeight"  name="height" required></label>
+        <label>Цена (₽)       <input type="number" id="editPrice"   name="price" step="0.01" required></label>
+        <label>Адрес          <input type="text"   id="editAddress" name="address" required></label>
+        <label>Фото           <input type="file"   id="editPhoto"   name="photo" accept="image/*"></label>
+        <input type="hidden" id="editOldPhoto" name="oldPhoto">
+        <button type="submit">Сохранить изменения</button>
+      </form>
+    </div>
+  </div>
+
   <script>
     /* ---------- ПОИСК ---------- */
-    const searchForm=document.getElementById('searchForm');
-    const resultDiv =document.getElementById('result');
+    const searchForm = document.getElementById('searchForm');
+    const resultDiv  = document.getElementById('result');
 
-    searchForm.addEventListener('submit', async e=>{
+    searchForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const id=document.getElementById('orderId').value.trim();
-      if(!id) return;
-      try{
-        const res=await fetch(`/api/order/${id}`);
-        if(!res.ok) throw new Error((await res.json()).error||'Не найдено');
-        const o=await res.json();
+      const id = document.getElementById('orderId').value.trim();
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/order/${id}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error((await res.json()).error || 'Не найдено');
+        const o = await res.json();
 
-        document.getElementById('rId').textContent     =o.Номер_Заказа;
-        document.getElementById('rLength').textContent =o.Высота;
-        document.getElementById('rWidth').textContent  =o.Ширина;
-        document.getElementById('rHeight').textContent =o.Толщина;
-        document.getElementById('rPrice').textContent  =o.Цена;
-        document.getElementById('rAddress').textContent=o.Адрес_Доставки;
+        document.getElementById('rId').textContent     = o.Номер_Заказа;
+        document.getElementById('rLength').textContent = o.Высота;
+        document.getElementById('rWidth').textContent  = o.Ширина;
+        document.getElementById('rHeight').textContent = o.Толщина;
+        document.getElementById('rPrice').textContent  = o.Цена;
+        document.getElementById('rAddress').textContent= o.Адрес_Доставки;
 
-        const img=document.getElementById('rPhoto');
-        if(o.photo){ img.src=o.photo; img.style.display='inline'; }
-        else{ img.style.display='none'; }
+        const img = document.getElementById('rPhoto');
+        if (o.photo) { img.src = o.photo; img.style.display = 'inline'; }
+        else { img.style.display = 'none'; }
 
-        resultDiv.hidden=false;
-      }catch(err){
-        alert(err.message||'Ошибка при поиске');
-        resultDiv.hidden=true;
+        resultDiv.hidden = false;
+      } catch (err) {
+        alert(err.message || 'Ошибка при поиске');
+        resultDiv.hidden = true;
       }
     });
 
     /* ---------- СОЗДАНИЕ ---------- */
-    const modal     =document.getElementById('createModal');
-    const openBtn   =document.getElementById('openCreateBtn');
-    const closeBtn  =document.querySelector('.close');
-    const createForm=document.getElementById('createForm');
+    const modal      = document.getElementById('createModal');
+    const openBtn    = document.getElementById('openCreateBtn');
+    const closeBtn   = document.querySelector('.close');
+    const createForm = document.getElementById('createForm');
 
-    openBtn .addEventListener('click',()=>modal.classList.add('show'));
-    closeBtn.addEventListener('click',()=>modal.classList.remove('show'));
-    window  .addEventListener('click',e=>{ if(e.target===modal)modal.classList.remove('show') });
+    openBtn.addEventListener('click', () => modal.classList.add('show'));
+    closeBtn.addEventListener('click', () => modal.classList.remove('show'));
+    window.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
 
-    createForm.addEventListener('submit', async e=>{
+    createForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const fd=new FormData(createForm);
-      try{
-        const res=await fetch('/api/order',{method:'POST', body:fd});
-        if(!res.ok) throw new Error((await res.json()).error||'Ошибка');
+      const fd = new FormData(createForm);
+      try {
+        const res = await fetch('/api/order', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error((await res.json()).error || 'Ошибка');
         alert('Заказ создан!');
         createForm.reset();
         modal.classList.remove('show');
-      }catch(err){
-        alert(err.message||'Не удалось создать заказ');
+      } catch (err) {
+        alert(err.message || 'Не удалось создать заказ');
+      }
+    });
+
+    /* ---------- ИЗМЕНЕНИЕ ЗАКАЗА ---------- */
+    const openEditBtn = document.getElementById('openEditBtn');
+    const editModal   = document.getElementById('editModal');
+    const editForm    = document.getElementById('editForm');
+    const closeEdit   = document.getElementById('closeEdit');
+
+    openEditBtn.addEventListener('click', async () => {
+      const id = document.getElementById('editId').value.trim();
+      if (!id) { alert('Введите номер заказа'); return; }
+
+      try {
+        const res = await fetch(`/api/order/${id}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Не найдено');
+        const o = await res.json();
+
+        document.getElementById('editOrderId').value  = o.Номер_Заказа;
+        document.getElementById('editLength').value   = o.Высота;
+        document.getElementById('editWidth').value    = o.Ширина;
+        document.getElementById('editHeight').value   = o.Толщина;
+        document.getElementById('editPrice').value    = o.Цена;
+        document.getElementById('editAddress').value  = o.Адрес_Доставки;
+        document.getElementById('editOldPhoto').value = o.photo || '';
+        editModal.classList.add('show');
+      } catch (e) {
+        alert(e.message || 'Ошибка при поиске');
+      }
+    });
+
+    closeEdit.addEventListener('click', () => editModal.classList.remove('show'));
+    window.addEventListener('click', e => { if (e.target === editModal) editModal.classList.remove('show'); });
+
+    editForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(editForm);
+
+      const id = document.getElementById('editOrderId').value;
+      try {
+        const res = await fetch(`/api/order/${id}`, { method: 'PUT', body: fd });
+        if (!res.ok) throw new Error('Ошибка при изменении');
+        alert('Заказ изменён!');
+        editModal.classList.remove('show');
+      } catch (e) {
+        alert(e.message || 'Не удалось изменить заказ');
       }
     });
   </script>
