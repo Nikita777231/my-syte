@@ -4,6 +4,8 @@ const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
 const { Pool } = require('pg');
+const { error } = require('console');
+const { ok } = require('assert');
 
 // создаём папку uploads
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
@@ -55,9 +57,42 @@ app.get('/api/order/:id', async (req, res) => {
   }
 });
 
+
+//Удаление заказ по номеру
+app.delete('/api/order/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Сначала получаем фото из базы
+    const { rows } = await pool.query(
+      'SELECT photo FROM "Заказы" WHERE "Номер_Заказа" = $1',
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Заказ не найден' });
+    }
+
+    const photoPath = rows[0].photo ? path.join(__dirname, rows[0].photo) : null;
+
+    // Удаляем заказ
+    await pool.query('DELETE FROM "Заказы" WHERE "Номер_Заказа" = $1', [id]);
+
+    // Удаляем фото, если оно есть
+    if (photoPath && fs.existsSync(photoPath)) {
+      fs.unlink(photoPath, (err) => {
+        if (err) console.error('Ошибка при удалении фото:', err);
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE error', e);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // 2. Создать заказ (с фото)
 app.post('/api/order', upload.single('photo'), async (req, res) => {
-  const { orderId, length, width, height, price, address } = req.body;
+  const { orderId, length, width, height, price, address, equipment, description } = req.body;
   if (!orderId) return res.status(400).json({ error: 'Номер заказа не указан' });
 
   if (!validateNumbers(length, width, height, price)) {
@@ -68,9 +103,9 @@ app.post('/api/order', upload.single('photo'), async (req, res) => {
 
   try {
     await pool.query(
-      `INSERT INTO "Заказы" ("Номер_Заказа","Высота","Ширина","Толщина","Цена","Адрес_Доставки","photo")
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [orderId, length, width, height, price, address, photoPath]
+      `INSERT INTO "Заказы" ("Номер_Заказа","Высота","Ширина","Толщина","Цена","Адрес_Доставки","photo","Комплектация","Описание_Примечание")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [orderId, length, width, height, price, address, photoPath, equipment, description]
     );
     res.json({ ok: true });
   } catch (e) {
@@ -83,7 +118,7 @@ app.post('/api/order', upload.single('photo'), async (req, res) => {
 // 3. Обновить заказ по номеру
 app.put('/api/order/:id', upload.single('photo'), async (req, res) => {
   const { id } = req.params;
-  const { orderId, length, width, height, price, address, oldPhoto } = req.body;
+  const { orderId, length, width, height, price, address, oldPhoto, equipment, description } = req.body;
 
   if (!validateNumbers(length, width, height, price)) {
     return res.status(400).json({ error: 'Некорректные числовые значения' });
@@ -101,9 +136,11 @@ app.put('/api/order/:id', upload.single('photo'), async (req, res) => {
            "Толщина" = $3,
            "Цена" = $4,
            "Адрес_Доставки" = $5,
-           "photo" = COALESCE($6, photo)
-       WHERE "Номер_Заказа" = $7`,
-      [length, width, height, price, address, photoPath, id]
+           "photo" = COALESCE($6, photo),
+           "Комплектация" = $7,
+           "Описание_Примечание" = $8
+       WHERE "Номер_Заказа" = $9`,
+      [length, width, height, price, address, photoPath, equipment, description, id]
     );
     if (rowCount === 0) return res.status(404).json({ error: 'Не найдено' });
     res.json({ ok: true });
