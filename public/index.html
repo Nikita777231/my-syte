@@ -3,36 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <title>Управление заказами</title>
-  <style>
-    body { font-family: Arial; margin: 2rem; }
-    h1 { color: #2c3e50; }
-    #searchForm { margin-bottom: 1rem; }
-    #result { margin-top: 1rem; }
-    #result table { border-collapse: collapse;  }
-    #result td { padding: .4rem .8rem; border-bottom: 1px solid #ddd;  }
-
-    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); align-items: center; justify-content: center; }
-    .modal.show { display: flex; }
-    .modal-content { background: #fff; padding: 1.5rem 2rem; border-radius: 6px; min-width: 300px; }
-    .modal-content label { display: block; margin: .4rem 0; }
-    .close { float: right; font-size: 1.4rem; cursor: pointer; }
-    #rPhoto { max-width: 200px; }
-
-    #createForm { display: flex; flex-direction: column; gap: 0.8rem; }
-    #createForm label { display: flex; flex-direction: column; font-size: 1rem; }
-    #createForm input[type="number"],
-    #createForm input[type="text"],
-    #createForm input[type="file"] {
-      padding: 0.4rem;
-      font-size: 1rem;
-    }
-
-    #editModal .modal-content {
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>Управление заказами</h1>
@@ -44,7 +15,7 @@
   </form>
 
   <!-- РЕЗУЛЬТАТ -->
-  <div id="result" hidden >
+  <div id="result" hidden>
     <h2>Информация о заказе №<span id="rId"></span></h2>
     <table border="4">
       <tr><td>Высота (мм)</td><td id="rLength"></td></tr> 
@@ -54,7 +25,7 @@
       <tr><td>Адрес доставки</td><td id="rAddress"></td></tr>
       <tr><td>Фото</td><td><img id="rPhoto" style="display:none"></td></tr>
       <tr><td>Комплектация</td><td id="rEquipment"></td></tr>
-      <tr><td>Описание(примечание)</td><td id="rDescription"></td></tr>
+      <tr><td>Описание(примечание)</td><td id="rDescription"></td></tr> 
     </table>
     <h2>Информация о заказчике</h2>
     <table border="4">
@@ -62,6 +33,19 @@
       <tr><td>ФИО заказчика</td><td id="rFioCustomer"></td></tr>
       <tr><td>Адрес жительства</td><td id="rAddressOfResidence"></td></tr>
       <tr><td>Номер телефона</td><td id="rPhone"></td></tr>
+    </table>
+    <h2>Заключение</h2>
+    <table border="4">
+      <tr><td>Принял(а)</td><td id="rWhoAcceptOrder"></td></tr>
+      <tr><td>Дата принятия заказа</td><td id="rDateAcceptOrder"></td></tr>
+      <tr><td>Дата выполнения заказа</td><td id="rDateDoneOrder"></td></tr>
+      <tr><td>Дата выдачи заказа</td><td id="rDateExtraditionOrder"></td></tr>
+      <tr><td>Дата установки</td><td id="rDateInstallOrder"></td></tr>
+      <tr><td>Средство оплаты</td><td id="rMeansOfPayment"></td></tr>
+      <tr><td>Сумма(всего)</td><td id="rSum"></td></tr>
+      <tr><td>Скидка</td><td id="rDiscount"></td></tr>
+      <tr><td>Оплачено сразу</td><td id="rPaidImmediately"></td></tr>
+      <tr><td>Остаток</td><td id="rRemains"></td></tr>
     </table>
   </div>
 
@@ -114,134 +98,6 @@
     </div>
   </div>
 
-  <script>
-    /* ---------- ПОИСК ---------- */
-    const searchForm = document.getElementById('searchForm');
-    const resultDiv  = document.getElementById('result');
-
-    searchForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const id = document.getElementById('orderId').value.trim();
-      if (!id) return;
-      try {
-        const res = await fetch(`/api/order/${id}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error((await res.json()).error || 'Не найдено');
-        const o = await res.json();
-
-        document.getElementById('rId').textContent     = o.Номер_Заказа;
-        document.getElementById('rLength').textContent = o.Высота;
-        document.getElementById('rWidth').textContent  = o.Ширина;
-        document.getElementById('rHeight').textContent = o.Толщина;
-        document.getElementById('rPrice').textContent  = o.Цена;
-        document.getElementById('rAddress').textContent= o.Адрес_Доставки;
-        document.getElementById('rEquipment').textContent = o.Комплектация;
-        document.getElementById('rDescription').textContent = o.Описание_Примечание;
-
-        const img = document.getElementById('rPhoto');
-        if (o.photo) { img.src = o.photo; img.style.display = 'inline'; }
-        else { img.style.display = 'none'; }
-
-        resultDiv.hidden = false;
-      } catch (err) {
-        alert(err.message || 'Ошибка при поиске');
-        resultDiv.hidden = true;
-      }
-    });
-
-    /* ---------- СОЗДАНИЕ ---------- */
-    const modal      = document.getElementById('createModal');
-    const openBtn    = document.getElementById('openCreateBtn');
-    const closeBtn   = document.querySelector('.close');
-    const createForm = document.getElementById('createForm');
-
-    openBtn.addEventListener('click', () => modal.classList.add('show'));
-    closeBtn.addEventListener('click', () => modal.classList.remove('show'));
-    window.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
-
-    createForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const fd = new FormData(createForm);
-      try {
-        const res = await fetch('/api/order', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error((await res.json()).error || 'Ошибка');
-        alert('Заказ создан!');
-        createForm.reset();
-        modal.classList.remove('show');
-      } catch (err) {
-        alert(err.message || 'Не удалось создать заказ');
-      }
-    });
-
-    /* ---------- ИЗМЕНЕНИЕ ЗАКАЗА ---------- */
-    const openEditBtn = document.getElementById('openEditBtn');
-    const editModal   = document.getElementById('editModal');
-    const editForm    = document.getElementById('editForm');
-    const closeEdit   = document.getElementById('closeEdit');
-
-    openEditBtn.addEventListener('click', async () => {
-      const id = document.getElementById('editId').value.trim();
-      if (!id) { alert('Введите номер заказа'); return; }
-
-      try {
-        const res = await fetch(`/api/order/${id}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Не найдено');
-        const o = await res.json();
-
-        document.getElementById('editOrderId').value  = o.Номер_Заказа;
-        document.getElementById('editLength').value   = o.Высота;
-        document.getElementById('editWidth').value    = o.Ширина;
-        document.getElementById('editHeight').value   = o.Толщина;
-        document.getElementById('editPrice').value    = o.Цена;
-        document.getElementById('editAddress').value  = o.Адрес_Доставки;
-        document.getElementById('editOldPhoto').value = o.photo || '';
-        document.getElementById('editEquipment').value = o.Комплектация;
-        document.getElementById('editDescription').value = o.Описание_Примечание;
-        editModal.classList.add('show');
-      } catch (e) {
-        alert(e.message || 'Ошибка при поиске');
-      }
-    });
-
-    closeEdit.addEventListener('click', () => editModal.classList.remove('show'));
-    window.addEventListener('click', e => { if (e.target === editModal) editModal.classList.remove('show'); });
-
-    editForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const fd = new FormData(editForm);
-
-      const id = document.getElementById('editOrderId').value;
-      try {
-        const res = await fetch(`/api/order/${id}`, { method: 'PUT', body: fd });
-        if (!res.ok) throw new Error('Ошибка при изменении');
-        alert('Заказ изменён!');
-        editModal.classList.remove('show');
-      } catch (e) {
-        alert(e.message || 'Не удалось изменить заказ');
-      }
-    });
-
-   /* ---------- УДАЛЕНИЕ ЗАКАЗА ---------- */
-const deleteBtn = document.getElementById('deleteBtn');
-
-deleteBtn.addEventListener('click', async () => {
-  const id = document.getElementById('editId').value.trim();
-  if (!id) { 
-    alert('Введите номер заказа'); 
-    return; 
-  }
-
-  if (!confirm(`Точно удалить заказ №${id}?`)) return;
-
-  try {
-    const res = await fetch(`/api/order/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error((await res.json()).error || 'Ошибка при удалении');
-    alert('Заказ удалён!');
-    document.getElementById('editId').value = '';
-    document.getElementById('result').hidden = true;
-  } catch (e) {
-    alert(e.message || 'Не удалось удалить заказ');
-  }
-});
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
